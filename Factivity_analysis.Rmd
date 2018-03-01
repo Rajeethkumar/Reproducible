@@ -1,0 +1,94 @@
+---
+title: "Factivity_analysis"
+author: "Rajeeth"
+date: "March 1, 2018"
+output: html_document
+---
+Read Data from csv file
+```{r setup, include=FALSE}
+library(ggplot2)
+activity=read.csv("Factivity/activity.csv",sep=",")
+```
+
+To see what the data look like, I use the str(), summary(), and head() commands:
+```{r}
+summary(activity)
+```
+
+```{r}
+head(activity)
+```
+
+```{r}
+str(activity)
+```
+
+```{r}
+data <- na.omit(activity)
+step_agg <- aggregate(steps ~ date, data ,  sum)
+summary(step_agg)
+```
+###2.If you do not understand the difference between a histogram and a barplot, research the difference between them. Make a histogram of the total number of steps taken each day
+```{r}
+qplot(steps, data=step_agg)
+```
+
+###3.Calculate and report the mean and median of the total number of steps taken per day
+```{r}
+mean(step_agg$steps)
+median(step_agg$steps)
+```
+###4.Time series plot of the average number of steps taken
+```{r}
+interval_data <- aggregate(steps~interval,data,sum)
+summary(interval_data)
+ggplot(interval_data ,aes(interval, steps))+geom_line()
+```
+###5.The 5-minute interval that, on average, contains the maximum number of steps
+```{r}
+avg_steps <-  aggregate(steps ~ interval , data , mean)
+max(avg_steps$steps)
+```
+###6.Code to describe and show a strategy for imputing missing data
+1.Calculate and report the total number of missing values in the dataset
+```{r} 
+nrow(activity)-nrow(data)
+```
+2.Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated.
+
+There are number of the ways to impute missing values we can either fill them with zero which may cause bias or we may fill NA with mean of value. For steps missing values we replace NAs with average steps taken that day.
+```{r}
+library(dplyr)
+fun_replace <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE))
+meanday <- (activity %>% group_by(interval) %>% mutate(steps = fun_replace(steps)))
+
+head(meanday)
+```
+###7.Histogram After imputing missing values
+```{r}
+data <- as.data.frame(meanday)
+head(data)
+```
+1.Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps? We make a histogram of the total number of steps taken each day first by using the new version dataset
+```{r}
+new_steps <- aggregate(data$steps, by = list(data$date), FUN = sum)
+names(new_steps)[names(new_steps) == "x"] <- "Total"
+names(new_steps)[names(new_steps) == "Group.1"] <- "Date"
+hist2 <- ggplot(data = new_steps, aes(Total)) + 
+    geom_histogram(binwidth = 1500, colour = "white") +
+    xlab("Total Number of Steps Taken Each Day") +
+    ylab("Count") +
+    ggtitle("Histogram of the Total Number of Steps Taken Each Day with New Version Dataset")
+print(hist2)
+```
+
+### 8.Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+```{r}
+data$week <- ifelse(weekdays(as.Date(data$date)) %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"), "Weekday", "Weekend")
+head(data)
+
+new_data <- (data %>% group_by(interval, week) %>% summarise(Mean = mean(steps)))
+ggplot(new_data,aes(interval, Mean)) + geom_line() +
+    facet_grid(week ~.) + xlab("Interval") + ylab("Mean of Steps") +
+    ggtitle("Comparison of Average Number of Steps in Each Interval")
+```
